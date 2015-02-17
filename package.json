@@ -1,0 +1,15 @@
+{
+  "name": "umdtc",
+  "version": "1.0.0",
+  "description": "Unified Mobile Device Tracker client",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Alexander Selzer <aselzer3@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "chalk": "^0.5.1",
+    "minimist": "^1.1.0"
+  }
+}
