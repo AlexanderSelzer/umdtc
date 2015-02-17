@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-var api = require("../api.js")
 var argv = require("minimist")(process.argv.slice(2))
 var chalk = require("chalk")
 
@@ -23,3 +22,5 @@ else
 // the GPSd port is basically always the default one
 if (argv.gpsd_port)
   config.gpsd_port = argv.gpsd_port
+
+require("../umdtc.js")(config)

@@ -6,10 +6,14 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "bin": {
+    "umdtc": "bin/umdtc"
+  },
   "author": "Alexander Selzer <aselzer3@gmail.com>",
   "license": "MIT",
   "dependencies": {
     "chalk": "^0.5.1",
-    "minimist": "^1.1.0"
+    "minimist": "^1.1.0",
+    "node-gpsd": "^0.2.1"
   }
 }
