@@ -15,3 +15,11 @@ DEVICES="ttyACM0"
 Then restart/start gpsd (`systemctl restart gpsd`)
 
 Otherwise, use the command `sudo gpsd /dev/ttyACM0`
+
+## Info
+
+Can't get rid of the monitor interface after the program crashed? `sudo iw mon0 del`
+
+[http://www.catb.org/gpsd/gpsd_json.html](http://www.catb.org/gpsd/gpsd_json.html)
+
+

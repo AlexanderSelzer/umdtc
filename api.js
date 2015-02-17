@@ -4,9 +4,11 @@ var api = function(server) {
   return {
     postData: function(data, cb) {
       var json = JSON.stringify(data)
+      console.log("posting to" + server)
 
       var options = {
-        hostname: server,
+        hostname: server.split(":")[0],
+        port: server.split(":")[1],
         method: "POST",
         path: "/data",
         headers: {

@@ -4,7 +4,7 @@ var argv = require("minimist")(process.argv.slice(2))
 var chalk = require("chalk")
 
 var config = {
-  "server": "http://localhost:8080",
+  "server": "localhost:8080",
   "interface": "wlp0s20u1u1",
   "gpsd_port": 2947
 }

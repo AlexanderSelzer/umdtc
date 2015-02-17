@@ -15,6 +15,6 @@
     "chalk": "^0.5.1",
     "minimist": "^1.1.0",
     "node-gpsd": "^0.2.1",
-    "pcap": "^2.0.1"
+    "pcap": "git://github.com/mranney/node_pcap"
   }
 }
