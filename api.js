@@ -1,10 +1,11 @@
 var http = require("http")
 
+/* umdt server API client */
+
 var api = function(server) {
   return {
     postData: function(data, cb) {
       var json = JSON.stringify(data)
-      console.log("posting to" + server)
 
       var options = {
         hostname: server.split(":")[0],

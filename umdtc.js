@@ -1,6 +1,7 @@
 var chalk = require("chalk")
 var gpsd = require("node-gpsd")
 var pcap = require("pcap")
+var net = require("net")
 var exec = require("child_process").execSync
 
 var WIFI_PROBE_FILTER = "wlan type mgt subtype probe-req"
@@ -20,6 +21,9 @@ module.exports = function(config) {
     if (gpsData.length > 20)
       gpsData.shift()
   }
+
+  var port = config.server.slice(":")[1]
+  var host = config.server.slice(":")[0]
 
   /* GPSd setup */
 
@@ -41,7 +45,6 @@ module.exports = function(config) {
 
   gps.on("error.socket", function() {
     console.error("GPSd socket error")
-    process.exit(1)
   })
 
   gps.on("TPV", function(data) {
@@ -64,7 +67,10 @@ module.exports = function(config) {
     if (packet.payload && packet.payload.ieee802_11Frame) {
       var frame = packet.payload.ieee802_11Frame
       
+      // format MAC address as string (vs. array)
       data.tracking_data.shost = frame.shost.addr
+        .map(function(n) { return n.toString("16") })
+        .join(":")
     }
 
     var lastGps = getLastGps()
@@ -78,7 +84,7 @@ module.exports = function(config) {
     data.climb = lastGps.climb
 
     api.postData(data, function(err, res) {
-      console.log(err, res)
+      if (err) console.error(chalk.red("error: server might be down... "), err)
     })
   })
 }

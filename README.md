@@ -22,4 +22,6 @@ Can't get rid of the monitor interface after the program crashed? `sudo iw mon0 
 
 [http://www.catb.org/gpsd/gpsd_json.html](http://www.catb.org/gpsd/gpsd_json.html)
 
+## Running
 
+`sudo node bin/umtcd`
