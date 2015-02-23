@@ -11,7 +11,7 @@ var api = function(server) {
         hostname: server.split(":")[0],
         port: server.split(":")[1],
         method: "POST",
-        path: "/data",
+        path: "/api/data",
         headers: {
           "Content-Type": "application/json",
           "Content-length": json.length

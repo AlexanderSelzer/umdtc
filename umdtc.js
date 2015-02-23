@@ -2,6 +2,7 @@ var chalk = require("chalk")
 var gpsd = require("node-gpsd")
 var pcap = require("pcap")
 var net = require("net")
+var fs = require("fs")
 var exec = require("child_process").execSync
 
 var WIFI_PROBE_FILTER = "wlan type mgt subtype probe-req"
@@ -48,17 +49,22 @@ module.exports = function(config) {
   })
 
   gps.on("TPV", function(data) {
-    addTPV(data)
+    if (typeof data !== "undefined")
+      addTPV(data)
   })
 
   /* WiFi sniffing */
   exec("ip link set " + config.interface + " up")
-  exec("iw dev " + config.interface + " interface add mon0 type monitor flags none")
+
+  if (!fs.existsSync("/sys/class/net/mon0"))
+    exec("iw dev " + config.interface + " interface add mon0 type monitor flags none")
+  
   exec("ip link set mon0 up")
 
   var session = pcap.createSession("mon0", WIFI_PROBE_FILTER)
   session.on("packet", function(raw) {
     var packet = pcap.decode.packet(raw)
+    //console.log(JSON.stringify(packet, null, 2))
 
     var data = {}
     data.type = "wifi"
@@ -71,21 +77,33 @@ module.exports = function(config) {
       data.tracking_data.shost = frame.shost.addr
         .map(function(n) { return n.toString("16") })
         .join(":")
+
+      // extract ssid
+      if (frame.probe.tags.length > 0) {
+        frame.probe.tags.forEach(function(tag) {
+          if (tag.ssid)
+            data.tracking_data.ssid = tag.ssid
+        })
+      }
     }
 
     var lastGps = getLastGps()
-    data.lat = lastGps.lat
-    data.lon = lastGps.lon
-    data.alt = lastGps.alt
-    data.epx = lastGps.epx
-    data.epy = lastGps.epy
-    data.epv = lastGps.epv
-    data.speed = lastGps.speed
-    data.climb = lastGps.climb
 
-    api.postData(data, function(err, res) {
-      if (err) console.error(chalk.red("error: server might be down... "), err)
-    })
+    // only transmit data if there is GPS!
+    if (lastGps) {
+      data.lat = lastGps.lat
+      data.lon = lastGps.lon
+      data.alt = lastGps.alt
+      data.epx = lastGps.epx
+      data.epy = lastGps.epy
+      data.epv = lastGps.epv
+      data.speed = lastGps.speed
+      data.climb = lastGps.climb
+
+      api.postData(data, function(err, res) {
+        if (err) console.error(chalk.red("error: server might be down... "), err)
+      })
+    }
   })
 }
 
