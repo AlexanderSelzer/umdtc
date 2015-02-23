@@ -13,11 +13,8 @@ var gpsData = []
 module.exports = function(config) {
   var api = require("./api.js")(config.server)
 
-  function getLastGps() {
-    return gpsData[gpsData.length - 1]
-  }
-
   function addTPV(tpv) {
+    tpv.date = new Date()
     gpsData.push(tpv)
     if (gpsData.length > 20)
       gpsData.shift()
@@ -87,22 +84,29 @@ module.exports = function(config) {
       }
     }
 
-    var lastGps = getLastGps()
+    var lastGps = gpsData[gpsData.length - 1]
+    var timeDiff = (Date.now() - lastGps.date) / 1000
 
-    // only transmit data if there is GPS!
+
+    // only transmit data if GPS is available!
     if (lastGps) {
-      data.lat = lastGps.lat
-      data.lon = lastGps.lon
-      data.alt = lastGps.alt
-      data.epx = lastGps.epx
-      data.epy = lastGps.epy
-      data.epv = lastGps.epv
-      data.speed = lastGps.speed
-      data.climb = lastGps.climb
+      if (timeDiff < 4) {
+        data.lat = lastGps.lat
+        data.lon = lastGps.lon
+        data.alt = lastGps.alt
+        data.epx = lastGps.epx
+        data.epy = lastGps.epy
+        data.epv = lastGps.epv
+        data.speed = lastGps.speed
+        data.climb = lastGps.climb
 
-      api.postData(data, function(err, res) {
-        if (err) console.error(chalk.red("error: server might be down... "), err)
-      })
+        api.postData(data, function(err, res) {
+          if (err) console.error(chalk.red("error: server might be down... "), err)
+        })
+      }
+      else {
+        console.log(chalk.red("warning: ") + "GPS data outdated")
+      }
     }
   })
 }
