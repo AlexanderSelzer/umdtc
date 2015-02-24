@@ -7,21 +7,35 @@ var exec = require("child_process").execSync
 
 var WIFI_PROBE_FILTER = "wlan type mgt subtype probe-req"
 
-var gps
-var gpsData = []
+function GpsStore() {
+  this.tpvs = []
+}
+
+GpsStore.prototype = {
+  add: function(tpv) {
+    tpv.date = new Date()
+    this.tpvs.push(tpv)
+    if (gpsData.length > 20)
+      this.tpvs.shift() // remove first (oldest) element
+  },
+  get: function(i) {
+    if (!i) {
+      return this.tpvs[this.tpvs.length - 1]
+    }
+    else {
+      return this.tpvs[i]
+    }
+  }
+}
+
+var gps // GPS device
+var gpsData = new GpsStore()
 
 module.exports = function(config) {
   var api = require("./api.js")(config.server)
 
-  function addTPV(tpv) {
-    tpv.date = new Date()
-    gpsData.push(tpv)
-    if (gpsData.length > 20)
-      gpsData.shift()
-  }
-
-  var port = config.server.slice(":")[1]
   var host = config.server.slice(":")[0]
+  var port = config.server.slice(":")[1]
 
   /* GPSd setup */
 
@@ -45,12 +59,18 @@ module.exports = function(config) {
     console.error("GPSd socket error")
   })
 
+  /*
+   * TPV = "time-position-velocity report"
+   * It includes all GPS data that is useful to umdt :)
+   * mode = 2 means 2d fix, mode = 3 3d.
+   * 3d fix means vertical data / altitude
+   * */
+
   gps.on("TPV", function(data) {
-    if (typeof data !== "undefined")
-      addTPV(data)
+    if (typeof data !== "undefined" && (data.mode === 2 || data.mode === 3)) // 2d or 3d fix
+      gpsData.add(data)
   })
 
-  /* WiFi sniffing */
   exec("ip link set " + config.interface + " up")
 
   if (!fs.existsSync("/sys/class/net/mon0"))
@@ -61,7 +81,6 @@ module.exports = function(config) {
   var session = pcap.createSession("mon0", WIFI_PROBE_FILTER)
   session.on("packet", function(raw) {
     var packet = pcap.decode.packet(raw)
-    //console.log(JSON.stringify(packet, null, 2))
 
     var data = {}
     data.type = "wifi"
@@ -84,29 +103,40 @@ module.exports = function(config) {
       }
     }
 
-    var lastGps = gpsData[gpsData.length - 1]
-    var timeDiff = (Date.now() - lastGps.date) / 1000
+    if (!config.fixed_pos) {
 
+      var lastFix = gpsData.get()
 
-    // only transmit data if GPS is available!
-    if (lastGps) {
-      if (timeDiff < 4) {
-        data.lat = lastGps.lat
-        data.lon = lastGps.lon
-        data.alt = lastGps.alt
-        data.epx = lastGps.epx
-        data.epy = lastGps.epy
-        data.epv = lastGps.epv
-        data.speed = lastGps.speed
-        data.climb = lastGps.climb
+      // only transmit data if GPS is available!
+      if (lastFix) {
+        var timeDiff = (Date.now() - lastFix.date) / 1000
 
-        api.postData(data, function(err, res) {
-          if (err) console.error(chalk.red("error: server might be down... "), err)
-        })
+        var maxTimeDiff = 4
+        if (config.gps_timeout)
+          maxTimeDiff = config.gps_timeout
+
+        if (timeDiff < maxTimeDiff) {
+          data.lat = lastFix.lat
+          data.lon = lastFix.lon
+          data.alt = lastFix.alt
+          data.epx = lastFix.epx
+          data.epy = lastFix.epy
+          data.epv = lastFix.epv
+          data.speed = lastFix.speed
+          data.climb = lastFix.climb
+
+          api.postData(data, function(err, res) {
+            if (err) console.error(chalk.red("error: server might be down... "), err)
+          })
+        }
+        else {
+          console.log(chalk.red("warning: ") + "GPS data outdated by " + timeDiff + " seconds")
+        }
       }
-      else {
-        console.log(chalk.red("warning: ") + "GPS data outdated")
-      }
+    }
+    else {
+      // Fixed position
+      console.log(config.lat, config.lon)
     }
   })
 }
