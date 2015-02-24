@@ -73,12 +73,13 @@ module.exports = function(config) {
 
   exec("ip link set " + config.interface + " up")
 
-  if (!fs.existsSync("/sys/class/net/mon0"))
+  if (!fs.existsSync("/sys/class/net/mon0")) {
     exec("iw dev " + config.interface + " interface add mon0 type monitor flags none")
-  
-  exec("ip link set mon0 up")
+    exec("ip link set mon0 up")
+  }
 
   var session = pcap.createSession("mon0", WIFI_PROBE_FILTER)
+
   session.on("packet", function(raw) {
     var packet = pcap.decode.packet(raw)
 
@@ -104,7 +105,6 @@ module.exports = function(config) {
     }
 
     if (!config.fixed_pos) {
-
       var lastFix = gpsData.get()
 
       // only transmit data if GPS is available!
@@ -136,7 +136,18 @@ module.exports = function(config) {
     }
     else {
       // Fixed position
-      console.log(config.lat, config.lon)
+      data.lat = config.lat
+      data.lon = config.lon
+      data.alt = 0
+      data.epx = 0
+      data.epy = 0
+      data.epv = 0
+      data.speed = 0
+      data.climb = 0
+
+      api.postData(data, function(err, res) {
+        if (err) console.error(chalk.red("error: server might be down... "), err)
+      })
     }
   })
 }

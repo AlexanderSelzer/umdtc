@@ -7,6 +7,7 @@ var config = {
   "server": "localhost:8080",
   "interface": "wlp0s20u1u1",
   "gpsd_port": 2947,
+  "fixed_pos": false
 }
 
 if (argv.h || argv.help) {
@@ -14,7 +15,7 @@ if (argv.h || argv.help) {
     "--server {host:port}\n" +
     "--if {name}\n" +
     "--gpsd-port {port}\n" + 
-    "--fixed-pos {lat} {lon}\n" +
+    "--fixed-pos --lat {lat} --lon {lon}\n" +
     "--gps-timeout {seconds}\n"
       )
   process.exit(0)
@@ -39,11 +40,11 @@ if (argv["gpsd-port"])
 // not sure if this is a good idea...
 if (argv["fixed-pos"]) {
   if (!argv.lat || !argv.lon) {
-    console.log(chalk.red("error: ") + "--lat and --lon")
+    console.log(chalk.red("error: ") + "see umdtc -h")
     process.exit(1)
   }
   else {
-    config["fixed-pos"] = true
+    config.fixed_pos = true
     config.lat = parseFloat(argv.lat)
     config.lon = parseFloat(argv.lon)
   }
