@@ -34,6 +34,12 @@ var gpsData = new GpsStore()
 module.exports = function(config) {
   var api = require("./api.js")(config.server)
 
+
+  process.on("uncaughtException", function (err) {
+    console.log("exception: " + err)
+    // just don't crash
+  })
+
   var host = config.server.slice(":")[0]
   var port = config.server.slice(":")[1]
 
