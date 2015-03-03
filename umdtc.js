@@ -6,6 +6,7 @@ var fs = require("fs")
 var exec = require("child_process").execSync
 
 var WIFI_PROBE_FILTER = "wlan type mgt subtype probe-req"
+var captureDevice = "mon0" // default
 
 function GpsStore() {
   this.tpvs = []
@@ -34,7 +35,6 @@ var gpsData = new GpsStore()
 module.exports = function(config) {
   var api = require("./api.js")(config.server)
 
-
   process.on("uncaughtException", function (err) {
     console.log("exception: " + err)
     // just don't crash
@@ -45,11 +45,13 @@ module.exports = function(config) {
 
   /* GPSd setup */
 
-  gps = new gpsd.Listener({
-    port: config.gpsd_port,
-    hostname: "localhost",
-    parse: true
-  })
+  if (!config.fixed_pos) {
+    gps = new gpsd.Listener({
+      port: config.gpsd_port,
+      hostname: "localhost",
+      parse: true
+    })
+  }
 
   gps.connect(function() {
     console.log("connected to gpsd")
@@ -77,14 +79,27 @@ module.exports = function(config) {
       gpsData.add(data)
   })
 
+  // always try to bring the interface up first
   exec("ip link set " + config.interface + " up")
 
-  if (!fs.existsSync("/sys/class/net/mon0")) {
-    exec("iw dev " + config.interface + " interface add mon0 type monitor flags none")
-    exec("ip link set mon0 up")
+  var ifInfo = exec("ip link show " + config.interface).toString()
+
+  if (/link\/ieee802.11/.test(ifInfo)) {
+    if (!(/link\/ieee802.11\/radiotap/).test(ifInfo)) {
+      console.log("Error: this won't work, only radiotap monitor interfaces do :(")
+      process.exit(1)
+    }
+    // When the interface passed through the flags is actually in monitor mode, use it.
+    captureDevice = config.interface
+  }
+  else {
+    if (!fs.existsSync("/sys/class/net/mon0")) {
+      exec("iw dev " + config.interface + " interface add " + captureDevice + " type monitor flags none")
+      exec("ip link set " + captureDevice + " up")
+    }
   }
 
-  var session = pcap.createSession("mon0", WIFI_PROBE_FILTER)
+  var session = pcap.createSession(captureDevice, WIFI_PROBE_FILTER)
 
   session.on("packet", function(raw) {
     var packet = pcap.decode.packet(raw)
@@ -160,6 +175,8 @@ module.exports = function(config) {
 
 // clean up
 process.on("SIGINT", function() {
-  exec("iw dev mon0 del")
+  if (captureDevice === "mon0") 
+    exec("iw dev mon0 del")
   gps.disconnect()
+  process.exit(1)
 })

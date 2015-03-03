@@ -7,31 +7,40 @@ var config = {
   "server": "localhost:8080",
   "interface": "wlp0s20u1u1",
   "gpsd_port": 2947,
-  "fixed_pos": false
+  "fixed_pos": false,
+  "monitor": false
 }
 
 if (argv.h || argv.help) {
   console.log(
-    "--server {host:port}\n" +
-    "--if {name}\n" +
-    "--gpsd-port {port}\n" + 
+    "--server | -s     {host:port}\n" +
+    "--if | -i         {name}\n" +
+    "--gpsd-port       {port}\n" + 
     "--fixed-pos --lat {lat} --lon {lon}\n" +
-    "--gps-timeout {seconds}\n"
+    "--gps-timeout     {seconds}\n"
       )
   process.exit(0)
 }
 
 // Alternative server addresses
-if (!argv.server)
+var server = argv.server || argv.s
+if (!server)
   console.log("server: " + chalk.green(config.server) + "\t (specify a server with " + chalk.blue("--server") + ")")
 else
-  config.server = argv.server
+  config.server = server
 
-// Alternative interface
-if (!argv.if)
+// Alternative interface name
+var interface = argv.if || argv.i
+if (!interface)
   console.log("interface: " + chalk.green(config.interface) + "\t (select a network interface with " + chalk.blue("--if") + ")")
 else
-  config.interface = argv.if
+  config.interface = interface
+
+/*
+var monitor = argv.monitor || argv.m
+if (monitor)
+  config.monitor = true
+  */
 
 // the GPSd port is basically always the default one
 if (argv["gpsd-port"])
