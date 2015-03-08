@@ -139,6 +139,11 @@ module.exports = function(config) {
 
             data.tracking_data.extended_rates = extended_rates
           }
+
+          if (tag.type === "channel" && tag.value) {
+            if (tag.value.length > 0)
+              data.tracking_data.channel = tag.value[0]
+          }
         })
       }
     }
