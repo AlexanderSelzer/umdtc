@@ -119,8 +119,26 @@ module.exports = function(config) {
       // extract ssid
       if (frame.probe.tags.length > 0) {
         frame.probe.tags.forEach(function(tag) {
-          if (tag.ssid)
+          if (tag.type === "ssid" && tag.ssid) {
             data.tracking_data.ssid = tag.ssid
+          }
+
+          if (tag.type === "rates" && tag.value) {
+            var rates = []
+            for (var i = 0; i < tag.value.length; i++) {
+              rates.push(tag.value[i])
+            }
+            data.tracking_data.rates = rates
+          }
+
+          if (tag.type === "extended_rates" && tag.value) {
+            var extended_rates = []
+            for (var i = 0; i < tag.value.length; i++) {
+              extended_rates.push(tag.value[i])
+            }
+
+            data.tracking_data.extended_rates = extended_rates
+          }
         })
       }
     }
