@@ -8,21 +8,36 @@ var config = {
   "interface": "wlp0s20u1u1",
   "gpsd_port": 2947,
   "fixed_pos": false,
-  "monitor": false
+  "monitor": false,
+  "discard": false,
+  "log": false
 }
 
 if (argv.h || argv.help) {
-  console.log(
+  console.log( 
     "--server | -s     {host:port}\n" +
+    "   Use a custom server (instead of localhost:8080)\n\n" +
+
     "--if | -i         {name}\n" +
-    "--gpsd-port       {port}\n" + 
+    "   set network interface to use\n\n" +
+
+    "--gpsd-port       {port}\n\n" + 
     "--fixed-pos --lat {lat} --lon {lon}\n" +
-    "--gps-timeout     {seconds}\n"
+    "   don't use GPSd, but send from a fixed position (useful if GPS signal is bad)\n\n" +
+
+    "--gps-timeout     {seconds}\n" +
+    "   don't use data after it is {seconds} old (can be set high if the sender moves slowly or not at all)\n\n" +
+
+    "--discard\n" +
+    "   don't send data to server (for debugging / testing)\n\n" +
+
+    "--print\n" +
+    "   print captured data to console\n"
       )
   process.exit(0)
 }
 
-// Alternative server addresses
+// Alternative server address
 var server = argv.server || argv.s
 if (!server)
   console.log("server: " + chalk.green(config.server) + "\t (specify a server with " + chalk.blue("--server") + ")")
@@ -35,12 +50,6 @@ if (!interface)
   console.log("interface: " + chalk.green(config.interface) + "\t (select a network interface with " + chalk.blue("--if") + ")")
 else
   config.interface = interface
-
-/*
-var monitor = argv.monitor || argv.m
-if (monitor)
-  config.monitor = true
-  */
 
 // the GPSd port is basically always the default one
 if (argv["gpsd-port"])
@@ -64,6 +73,12 @@ if (argv["gps-timeout"]) {
   config.gps_timeout = parseInt(argv["gps-timeout"])
 }
 
-console.log("warning: ignore warning below")
+if (argv.discard) {
+  config.discard = true
+}
+
+if (argv.print) {
+  config.log = true
+}
 
 require("../umdtc.js")(config)

@@ -35,10 +35,12 @@ var gpsData = new GpsStore()
 module.exports = function(config) {
   var api = require("./api.js")(config.server)
 
-  process.on("uncaughtException", function (err) {
-    console.log("exception: " + err)
-    // just don't crash
-  })
+  if (!process.env.UMDTC_DEBUG) {
+    process.on("uncaughtException", function (err) {
+      console.log("exception: " + err)
+      // just don't crash
+    })
+  }
 
   var host = config.server.slice(":")[0]
   var port = config.server.slice(":")[1]
@@ -51,33 +53,33 @@ module.exports = function(config) {
       hostname: "localhost",
       parse: true
     })
+
+    gps.connect(function() {
+      console.log("connected to gpsd")
+      gps.watch()
+    })
+
+    gps.on("error.connection", function() {
+      console.error("connection error, failed to start. Maybe GPS is down.")
+      process.exit(1)
+    })
+
+    gps.on("error.socket", function() {
+      console.error("GPSd socket error")
+    })
+
+    /*
+     * TPV = "time-position-velocity report"
+     * It includes all GPS data that is useful to umdt :)
+     * mode = 2 means 2d fix, mode = 3 3d.
+     * 3d fix means vertical data / altitude
+     * */
+
+    gps.on("TPV", function(data) {
+      if (typeof data !== "undefined" && (data.mode === 2 || data.mode === 3)) // 2d or 3d fix
+        gpsData.add(data)
+    })
   }
-
-  gps.connect(function() {
-    console.log("connected to gpsd")
-    gps.watch()
-  })
-
-  gps.on("error.connection", function() {
-    console.error("connection error, failed to start. Maybe GPS is down.")
-    process.exit(1)
-  })
-
-  gps.on("error.socket", function() {
-    console.error("GPSd socket error")
-  })
-
-  /*
-   * TPV = "time-position-velocity report"
-   * It includes all GPS data that is useful to umdt :)
-   * mode = 2 means 2d fix, mode = 3 3d.
-   * 3d fix means vertical data / altitude
-   * */
-
-  gps.on("TPV", function(data) {
-    if (typeof data !== "undefined" && (data.mode === 2 || data.mode === 3)) // 2d or 3d fix
-      gpsData.add(data)
-  })
 
   // always try to bring the interface up first
   exec("ip link set " + config.interface + " up")
@@ -109,6 +111,10 @@ module.exports = function(config) {
     data.tracking_data = {}
 
     if (packet.payload && packet.payload.ieee802_11Frame) {
+      if (packet.payload.frequency) {
+        data.tracking_data.frequency = packet.payload.frequency
+      }
+
       var frame = packet.payload.ieee802_11Frame
       
       // format MAC address as string (vs. array)
@@ -141,14 +147,20 @@ module.exports = function(config) {
           }
 
           if (tag.type === "channel" && tag.value) {
-            if (tag.value.length > 0)
+            if (tag.value.length > 0) 
               data.tracking_data.channel = tag.value[0]
           }
+
+          // TODO collect other types of data:
+          // * HT capabilities
+          // * WPS
+          // * extended capabilities
+          // * other vendor-specific stuff
         })
       }
     }
 
-    if (!config.fixed_pos) {
+    if (!config.fixed_pos && !config.discard) {
       var lastFix = gpsData.get()
 
       // only transmit data if GPS is available!
@@ -169,9 +181,16 @@ module.exports = function(config) {
           data.speed = lastFix.speed
           data.climb = lastFix.climb
 
-          api.postData(data, function(err, res) {
-            if (err) console.error(chalk.red("error: server might be down... "), err)
-          })
+          if (config.log) {
+            console.log(JSON.stringify(data))
+          }
+
+
+          if (!config.discard) {
+            api.postData(data, function(err, res) {
+              if (err) console.error(chalk.red("error: server might be down... "), err)
+            })
+          }
         }
         else {
           console.log(chalk.red("warning: ") + "GPS data outdated by " + timeDiff + " seconds")
@@ -189,9 +208,15 @@ module.exports = function(config) {
       data.speed = 0
       data.climb = 0
 
-      api.postData(data, function(err, res) {
-        if (err) console.error(chalk.red("error: server might be down... "), err)
-      })
+      if (config.log) {
+        console.log(JSON.stringify(data))
+      }
+
+      if (!config.discard) {
+        api.postData(data, function(err, res) {
+          if (err) console.error(chalk.red("error: server might be down... "), err)
+        })
+      }
     }
   })
 }
@@ -200,6 +225,7 @@ module.exports = function(config) {
 process.on("SIGINT", function() {
   if (captureDevice === "mon0") 
     exec("iw dev mon0 del")
-  gps.disconnect()
+  if (gps)
+    gps.disconnect()
   process.exit(1)
 })
